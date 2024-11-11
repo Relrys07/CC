@@ -1,0 +1,491 @@
+html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Combustível</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1e1e1e 0%, #3e3e3e 100%);
+            color: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            color: #ffdd57;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+        button {
+            background-color: #ff6f61;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #ff4b3e;
+        }
+        .history-item {
+            background: rgba(255, 255, 255, 0.08);
+            margin: 8px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #litersNeeded, #costEstimate, #totalCost {
+            font-weight: bold;
+            color: #ffdd57;
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.2em;
+        }
+        .hidden {
+            display: none;
+        }
+        h2 {
+            margin-top: 20px;
+            font-size: 1.8em;
+            color: #ffdd57;
+        }
+        select {
+            appearance: none;
+            background-color: rgba(0, 0, 0, 0.3);
+            color: #f5f5f5;
+        }
+        p {
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-gas-pump"></i> Controle de Combustível</h1>
+
+        <div id="loginPage">
+            <h2>Login</h2>
+            <input type="text" id="loginUsername" placeholder="Usuário" required>
+            <input type="password" id="loginPassword" placeholder="Senha" required>
+            <button onclick="login()">Entrar</button>
+            <button onclick="toggleRegister()">Criar Conta</button>
+        </div>
+
+        <div id="registerPage" class="hidden">
+            <h2>Cadastrar Usuário</h2>
+            <input type="text" id="registerName" placeholder="Nome" required>
+            <input type="text" id="registerPhone" placeholder="Telefone" required>
+            <input type="text" id="registerUsername" placeholder="Usuário" required>
+            <input type="password" id="registerPassword" placeholder="Senha" required>
+            <button onclick="register()">Registrar</button>
+            <button onclick="toggleLogin()">Voltar</button>
+        </div>
+
+        <div id="mainPage" class="hidden">
+            <h2>Registrar Veículo</h2>
+            <input type="text" id="vehicleName" placeholder="Nome/Modelo do Veículo" required>
+            <input type="number" id="vehicleEfficiency" placeholder="Consumo Médio (km/L)" step="0.1" required>
+            <select id="fuelType" required>
+                <option value="">Selecione o Combustível</option>
+                <option value="Gasolina">Gasolina</option>
+                <option value="Álcool">Álcool</option>
+                <option value="Diesel">Diesel</option>
+            </select>
+            <select id="vehicleType" required>
+                <option value="">Selecione o Tipo de Veículo</option>
+                <option value="Moto">Moto</option>
+                <option value="Carro">Carro</option>
+                <option value="Caminhão">Caminhão</option>
+                <option value="Outro">Outro</option>
+            </select>
+            <button onclick="addVehicle()">Adicionar Veículo</button>
+
+            <h2>Registrar Abastecimento</h2>
+            <select id="vehicleSelect" required>
+                <option value="">Selecione um veículo</option>
+            </select>
+            <input type="number" id="price" placeholder="Preço do Combustível (R$)" step="0.01" required>
+            <input type="number" id="initialKm" placeholder="Quilometragem Inicial (km)" required oninput="calculateDistance()">
+            <input type="number" id="finalKm" placeholder="Quilometragem Final (km)" required oninput="calculateDistance()">
+            <input type="number" id="liters" placeholder="Litros Abastecidos" step="0.01" required>
+            <input type="datetime-local" id="abastecimentoDate" required>
+            <button onclick="addRecord()">Adicionar Registro</button>
+
+            <h2>Estimativa de Litros Necessários</h2>
+            <input type="number" id="estimateDistance" placeholder="Distância a percorrer (km)" required>
+            <button onclick="calculateLitersNeeded()">Calcular Litros Necessários</button>
+            <div id="litersNeeded">Litros necessários: 0.00 L</div>
+            <div id="costEstimate">Custo Estimado: R$ 0.00</div>
+            <div id="totalCost">Total com Combustível: R$ 0.00</div>
+
+            <h2>Histórico de Abastecimentos</h2>
+            <div id="records"></div>
+
+            <h2>Totais</h2>
+            <div id="totals">
+                <p>Total de Litros Abastecidos: <span id="totalLiters">0.00</span> L</p>
+                <p>Total Pago: R$ <span id="totalPaid">0.00</span></p>
+                <p>Total de Distância Percorrida: <span id="totalDistance">0.00</span> km</p>
+            </div>
+
+            <button onclick="exportToExcel()">Salvar como XLSX</button>
+            <button onclick="exportToPDF()">Salvar como PDF</button>
+            <button onclick="deleteHistory()">Excluir Histórico</button>
+            <button onclick="logout()">Sair</button>
+        </div>
+    </div>
+
+    <script>
+        let vehicles = JSON.parse(localStorage.getItem('vehicles')) || [];
+        let records = JSON.parse(localStorage.getItem('records')) || [];
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+
+        function toggleRegister() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('registerPage').classList.remove('hidden');
+        }
+
+        function toggleLogin() {
+            document.getElementById('registerPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        }
+
+        function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const user = users.find(u => u.username === username && u.password === password);
+            if (user) {
+                showMainPage();
+            } else {
+                Swal.fire('Erro!', 'Usuário ou senha inválidos!', 'error');
+            }
+        }
+
+        function register() {
+            const name = document.getElementById('registerName').value;
+            const phone = document.getElementById('registerPhone').value;
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!name || !phone || !username || !password) {
+                Swal.fire('Erro!', 'Preencha todos os campos!', 'error');
+                return;
+            }
+
+            const newUser = { name, phone, username, password };
+            users.push(newUser);
+            localStorage.setItem('users', JSON.stringify(users));
+            Swal.fire('Sucesso!', 'Usuário registrado com sucesso!', 'success');
+            toggleLogin();
+        }
+
+        function showMainPage() {
+            document.getElementById('mainPage').classList.remove('hidden');
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('registerPage').classList.add('hidden');
+            updateVehicleSelect();
+            updateRecordsDisplay();
+            updateTotals();
+        }
+
+        function addVehicle() {
+            const name = document.getElementById('vehicleName').value;
+            const efficiency = parseFloat(document.getElementById('vehicleEfficiency').value);
+            const fuelType = document.getElementById('fuelType').value;
+            const vehicleType = document.getElementById('vehicleType').value;
+
+            if (!name || !efficiency || !fuelType || !vehicleType) {
+                Swal.fire('Erro!', 'Preencha todos os campos do veículo!', 'error');
+                return;
+            }
+
+            const vehicle = { id: Date.now(), name, efficiency, fuelType, vehicleType };
+            vehicles.push(vehicle);
+            localStorage.setItem('vehicles', JSON.stringify(vehicles)); // Salva no armazenamento local
+            updateVehicleSelect();
+            document.getElementById('vehicleName').value = '';
+            document.getElementById('vehicleEfficiency').value = '';
+            document.getElementById('fuelType').value = ''; // Limpa o campo de combustível
+            document.getElementById('vehicleType').value = ''; // Limpa o campo de tipo de veículo
+            Swal.fire('Sucesso!', 'Veículo cadastrado com sucesso!', 'success');
+        }
+
+        function updateVehicleSelect() {
+            const select = document.getElementById('vehicleSelect');
+            select.innerHTML = '<option value="">Selecione um veículo</option>';
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.name} (${vehicle.fuelType}, ${vehicle.vehicleType})`;
+                select.appendChild(option);
+            });
+        }
+
+        function calculateDistance() {
+            const initialKm = parseFloat(document.getElementById('initialKm').value);
+            const finalKm = parseFloat(document.getElementById('finalKm').value);
+            const vehicleId = document.getElementById('vehicleSelect').value;
+
+            if (!initialKm || !finalKm || initialKm >= finalKm) {
+                document.getElementById('liters').value = ''; // Clear liters if distance is invalid
+                return;
+            }
+
+            const distance = finalKm - initialKm;
+            const vehicle = vehicles.find(v => v.id == vehicleId);
+            if (vehicle) {
+                const litersNeeded = distance / vehicle.efficiency;
+                document.getElementById('liters').value = litersNeeded.toFixed(2);
+            }
+        }
+
+        function addRecord() {
+            const vehicleId = document.getElementById('vehicleSelect').value;
+            const price = parseFloat(document.getElementById('price').value);
+            const initialKm = parseFloat(document.getElementById('initialKm').value);
+            const finalKm = parseFloat(document.getElementById('finalKm').value);
+            const liters = parseFloat(document.getElementById('liters').value);
+            const abastecimentoDate = document.getElementById('abastecimentoDate').value;
+
+            if (!vehicleId || !price || !initialKm || !finalKm || !liters || !abastecimentoDate) {
+                Swal.fire('Erro!', 'Preencha todos os campos do abastecimento!', 'error');
+                return;
+            }
+
+            const vehicle = vehicles.find(v => v.id == vehicleId);
+            const distance = finalKm - initialKm;
+            const consumption = distance / liters;
+
+            const record = {
+                vehicleName: vehicle.name,
+                price,
+                initialKm,
+                finalKm,
+                liters,
+                distance,
+                consumption: consumption.toFixed(2),
+                date: abastecimentoDate, // Data e hora do abastecimento
+                totalCost: (liters * price).toFixed(2)
+            };
+
+            records.push(record);
+            localStorage.setItem('records', JSON.stringify(records)); // Salva no armazenamento local
+            updateRecordsDisplay();
+            updateTotals();
+            document.getElementById('price').value = '';
+            document.getElementById('initialKm').value = '';
+            document.getElementById('finalKm').value = '';
+            document.getElementById('liters').value = '';
+            document.getElementById('abastecimentoDate').value = ''; // Limpa o campo de data
+            Swal.fire('Sucesso!', 'Registro adicionado com sucesso!', 'success');
+        }
+
+        function updateRecordsDisplay() {
+            const recordsDiv = document.getElementById('records');
+            recordsDiv.innerHTML = '';
+            records.forEach((record, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div>
+                        <strong>${record.vehicleName}</strong><br>
+                        Distância: ${record.distance} km<br>
+                        Litros: ${record.liters} L<br>
+                        Consumo: ${record.consumption} km/L<br>
+                        Custo Total: R$ ${record.totalCost}<br>
+                        Data e Hora: ${record.date}
+                    </div>
+                    <div>
+                        <select id="saveFormat-${index}">
+                            <option value="jpg">JPG</option>
+                            <option value="pdf">PDF</option>
+                            <option value="xls">XLSX</option>
+                        </select>
+                        <button onclick="saveSpecificReceipt(${index})">Salvar</button>
+                        <button onclick="deleteRecord(${index})">Excluir</button>
+                    </div>
+                `;
+                recordsDiv.appendChild(div);
+            });
+        }
+
+        function deleteRecord(index) {
+            records.splice(index, 1); // Remove o registro do histórico
+            localStorage.setItem('records', JSON.stringify(records)); // Atualiza o armazenamento local
+            updateRecordsDisplay(); // Atualiza a exibição dos registros
+            updateTotals(); // Atualiza os totais
+            Swal.fire('Sucesso!', 'Registro excluído com sucesso!', 'success');
+        }
+
+        function saveSpecificReceipt(index) {
+            const record = records[index];
+            const format = document.getElementById(`saveFormat-${index}`).value;
+
+            if (format === 'jpg') {
+                saveReceiptAsJPG(record);
+            } else if (format === 'pdf') {
+                saveReceiptAsPDF(record);
+            } else if (format === 'xls') {
+                saveReceiptAsXLS(record);
+            }
+        }
+
+        function saveReceiptAsJPG(record) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 600;
+            canvas.height = 400;
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Comprovante de Abastecimento`, 20, 40);
+            ctx.fillText(`Veículo: ${record.vehicleName}`, 20, 80);
+            ctx.fillText(`Distância: ${record.distance} km`, 20, 120);
+            ctx.fillText(`Litros: ${record.liters} L`, 20, 160);
+            ctx.fillText(`Custo Total: R$ ${record.totalCost}`, 20, 200);
+            ctx.fillText(`Data e Hora: ${record.date}`, 20, 240);
+            ctx.fillText(`Combustível: ${vehicles.find(v => v.name === record.vehicleName).fuelType}`, 20, 280);
+
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'comprovante_abastecimento.jpg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }, 'image/jpeg');
+        }
+
+        function saveReceiptAsPDF(record) {
+            const pdfContent = `
+                Veículo: ${record.vehicleName}
+                Distância: ${record.distance} km
+                Litros: ${record.liters} L
+                Consumo: ${record.consumption} km/L
+                Custo Total: R$ ${record.totalCost}
+                Data e Hora: ${record.date}
+            `;
+
+            const blob = new Blob([pdfContent], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'comprovante_abastecimento.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function saveReceiptAsXLS(record) {
+            const ws = XLSX.utils.json_to_sheet([record]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Abastecimento");
+            XLSX.writeFile(wb, "comprovante_abastecimento.xlsx");
+        }
+
+        function calculateLitersNeeded() {
+            const distance = parseFloat(document.getElementById('estimateDistance').value);
+            const vehicleId = document.getElementById('vehicleSelect').value;
+
+            if (!distance || !vehicleId) {
+                Swal.fire('Erro!', 'Preencha a distância e selecione um veículo!', 'error');
+                return;
+            }
+
+            const vehicle = vehicles.find(v => v.id === vehicleId);
+            const litersNeeded = distance / vehicle.efficiency;
+            const estimatedCost = litersNeeded * parseFloat(document.getElementById('price').value);
+            const totalCost = litersNeeded * parseFloat(document.getElementById('price').value);
+
+            document.getElementById('litersNeeded').textContent = `Litros necessários: ${litersNeeded.toFixed(2)} L`;
+            document.getElementById('costEstimate').textContent = `Custo Estimado: R$ ${estimatedCost.toFixed(2)}`;
+            document.getElementById('totalCost').textContent = `Total com Combustível: R$ ${totalCost.toFixed(2)}`;
+        }
+
+        function updateTotals() {
+            const totalLiters = records.reduce((acc, record) => acc + record.liters, 0);
+            const totalPaid = records.reduce((acc, record) => acc + parseFloat(record.totalCost), 0);
+            const totalDistance = records.reduce((acc, record) => acc + record.distance, 0);
+            
+            document.getElementById('totalLiters').textContent = totalLiters.toFixed(2);
+            document.getElementById('totalPaid').textContent = totalPaid.toFixed(2);
+            document.getElementById('totalDistance').textContent = totalDistance.toFixed(2);
+        }
+
+        function exportToExcel() {
+            const ws = XLSX.utils.json_to_sheet(records);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Abastecimentos");
+            XLSX.writeFile(wb, "abastecimentos.xlsx");
+        }
+
+        function exportToPDF() {
+            const pdfContent = records.map(record => `
+                Veículo: ${record.vehicleName}
+                Distância: ${record.distance} km
+                Litros: ${record.liters} L
+                Consumo: ${record.consumption} km/L
+                Custo Total: R$ ${record.totalCost}
+                Data e Hora: ${record.date}
+                -------------------------
+            `).join('\n');
+
+            const blob = new Blob([pdfContent], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'abastecimentos.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function deleteHistory() {
+            records = [];
+            localStorage.setItem('records', JSON.stringify(records));
+            updateRecordsDisplay();
+            updateTotals();
+            Swal.fire('Sucesso!', 'Histórico excluído com sucesso!', 'success');
+        }
+
+        function logout() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
